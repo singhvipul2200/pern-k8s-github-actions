@@ -20,7 +20,7 @@ jobs:
     steps:
 
       # --------------------------------------------------------
-      # Checkout
+      # Checkout Repository
       # --------------------------------------------------------
 
       - name: Checkout Repository
@@ -50,10 +50,10 @@ jobs:
       - name: Backend Test Check
         working-directory: backend
         run: |
-          echo "Checking backend package scripts..."
+          echo "Checking backend test script..."
 
           if npm run | grep -q "test"; then
-            echo "Running backend tests..."
+            echo "Backend test script found."
             npm test
           else
             echo "Backend does not have a test script."
@@ -85,7 +85,7 @@ jobs:
     steps:
 
       # --------------------------------------------------------
-      # Checkout with full Git history
+      # Checkout Repository
       # --------------------------------------------------------
 
       - name: Checkout Repository
@@ -99,11 +99,11 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-        args: >
-          -Dsonar.qualitygate.wait=true
 
       # --------------------------------------------------------
       # SonarCloud Summary
@@ -115,8 +115,8 @@ jobs:
           echo "SonarCloud analysis completed"
           echo "======================================"
           echo "Organization: singhvipul2200"
-          echo "Project: singhvipul2200_pern-k8s-github-actions"
-          echo "Quality Gate result is enforced by the scan."
+          echo "Project Key: singhvipul2200_pern-k8s-github-actions"
+          echo "Quality Gate was checked."
           echo "======================================"
 
 
@@ -135,21 +135,21 @@ jobs:
     steps:
 
       # --------------------------------------------------------
-      # Checkout
+      # Checkout Repository
       # --------------------------------------------------------
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       # --------------------------------------------------------
-      # Docker Buildx
+      # Setup Docker Buildx
       # --------------------------------------------------------
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       # --------------------------------------------------------
-      # Docker Hub Login
+      # Login to Docker Hub
       # --------------------------------------------------------
 
       - name: Login to Docker Hub
@@ -196,7 +196,7 @@ jobs:
             VITE_IMAGEKIT_URL_ENDPOINT=${{ vars.VITE_IMAGEKIT_URL_ENDPOINT }}
 
       # ========================================================
-      # BUILD SUMMARY
+      # DOCKER BUILD SUMMARY
       # ========================================================
 
       - name: Docker Build Summary
@@ -241,7 +241,7 @@ jobs:
     steps:
 
       # --------------------------------------------------------
-      # Add EC2 host to known_hosts
+      # Add EC2 Host to known_hosts
       # --------------------------------------------------------
 
       - name: Add EC2 Host to known_hosts
@@ -272,6 +272,10 @@ jobs:
             echo "Current directory:"
             pwd
 
+            # ==================================================
+            # Pull Latest Docker Images
+            # ==================================================
+
             echo ""
             echo "======================================"
             echo "Pulling latest Docker images"
@@ -280,12 +284,20 @@ jobs:
             docker pull vipulsingh2200/pern-backend:latest
             docker pull vipulsingh2200/pern-frontend:latest
 
+            # ==================================================
+            # Stop Existing Containers
+            # ==================================================
+
             echo ""
             echo "======================================"
             echo "Stopping old containers"
             echo "======================================"
 
             docker compose down || true
+
+            # ==================================================
+            # Start New Containers
+            # ==================================================
 
             echo ""
             echo "======================================"
@@ -294,12 +306,20 @@ jobs:
 
             docker compose up -d
 
+            # ==================================================
+            # Remove Unused Images
+            # ==================================================
+
             echo ""
             echo "======================================"
             echo "Removing unused Docker images"
             echo "======================================"
 
             docker image prune -f
+
+            # ==================================================
+            # Deployment Status
+            # ==================================================
 
             echo ""
             echo "======================================"
