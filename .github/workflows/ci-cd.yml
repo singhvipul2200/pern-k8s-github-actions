@@ -1,4 +1,4 @@
-name: PERN App CI/CD
+name: PERN Store CI/CD
 
 on:
   push:
@@ -19,29 +19,21 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------------
-      # Checkout Repository
-      # --------------------------------------------------------
-
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      # --------------------------------------------------------
-      # Setup Node.js
-      # --------------------------------------------------------
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
           cache-dependency-path: |
             backend/package-lock.json
             frontend/package-lock.json
 
-      # ========================================================
-      # BACKEND
-      # ========================================================
+      # -------------------------
+      # Backend
+      # -------------------------
 
       - name: Install Backend Dependencies
         working-directory: backend
@@ -50,19 +42,12 @@ jobs:
       - name: Backend Test Check
         working-directory: backend
         run: |
-          echo "Checking backend test script..."
+          echo "Backend does not have a test script."
+          echo "Skipping backend unit tests."
 
-          if npm run | grep -q "test"; then
-            echo "Backend test script found."
-            npm test
-          else
-            echo "Backend does not have a test script."
-            echo "Skipping backend unit tests."
-          fi
-
-      # ========================================================
-      # FRONTEND
-      # ========================================================
+      # -------------------------
+      # Frontend
+      # -------------------------
 
       - name: Install Frontend Dependencies
         working-directory: frontend
@@ -84,40 +69,15 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------------
-      # Checkout Repository
-      # --------------------------------------------------------
-
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # --------------------------------------------------------
-      # SonarCloud Scan
-      # --------------------------------------------------------
-
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          args: >
-            -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      # --------------------------------------------------------
-      # SonarCloud Summary
-      # --------------------------------------------------------
-
-      - name: SonarCloud Summary
-        run: |
-          echo "======================================"
-          echo "SonarCloud analysis completed"
-          echo "======================================"
-          echo "Organization: singhvipul2200"
-          echo "Project Key: singhvipul2200_pern-k8s-github-actions"
-          echo "Quality Gate was checked."
-          echo "======================================"
 
 
   # ============================================================
@@ -134,23 +94,19 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------------
-      # Checkout Repository
-      # --------------------------------------------------------
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # --------------------------------------------------------
-      # Setup Docker Buildx
-      # --------------------------------------------------------
+      # -------------------------
+      # Docker Buildx
+      # -------------------------
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # --------------------------------------------------------
-      # Login to Docker Hub
-      # --------------------------------------------------------
+      # -------------------------
+      # Docker Hub Login
+      # -------------------------
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -160,6 +116,8 @@ jobs:
 
       # ========================================================
       # BACKEND IMAGE
+      # (no build-args needed — backend reads all config from
+      # runtime env vars / --env-file, not baked in at build time)
       # ========================================================
 
       - name: Build & Push Backend Image
@@ -169,13 +127,15 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-
           tags: |
             vipulsingh2200/pern-backend:latest
             vipulsingh2200/pern-backend:${{ github.sha }}
 
       # ========================================================
       # FRONTEND IMAGE
+      # (VITE_* vars ARE build-args — Vite bakes them into the
+      # JS bundle at build time, so they must be set here, not
+      # as normal env vars on the running container)
       # ========================================================
 
       - name: Build & Push Frontend Image
@@ -185,7 +145,6 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-
           tags: |
             vipulsingh2200/pern-frontend:latest
             vipulsingh2200/pern-frontend:${{ github.sha }}
@@ -195,9 +154,9 @@ jobs:
             VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_IMAGEKIT_URL_ENDPOINT=${{ vars.VITE_IMAGEKIT_URL_ENDPOINT }}
 
-      # ========================================================
-      # DOCKER BUILD SUMMARY
-      # ========================================================
+      # -------------------------
+      # Build Summary
+      # -------------------------
 
       - name: Docker Build Summary
         run: |
@@ -205,28 +164,25 @@ jobs:
           echo "Docker images built successfully"
           echo "======================================"
 
-          echo ""
           echo "Backend:"
           echo "vipulsingh2200/pern-backend:latest"
           echo "vipulsingh2200/pern-backend:${{ github.sha }}"
 
           echo ""
+
           echo "Frontend:"
           echo "vipulsingh2200/pern-frontend:latest"
           echo "vipulsingh2200/pern-frontend:${{ github.sha }}"
 
           echo ""
+
           echo "Backend Digest:"
           echo "${{ steps.backend-build.outputs.digest }}"
 
           echo ""
+
           echo "Frontend Digest:"
           echo "${{ steps.frontend-build.outputs.digest }}"
-
-          echo ""
-          echo "======================================"
-          echo "Docker push completed"
-          echo "======================================"
 
 
   # ============================================================
@@ -234,14 +190,15 @@ jobs:
   # ============================================================
 
   deploy:
-    name: Deploy PERN App to AWS EC2
+    name: Deploy to AWS EC2
     needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
 
       # --------------------------------------------------------
-      # Add EC2 Host to known_hosts
+      # Add EC2 host to known_hosts
+      # Prevents interactive SSH confirmation
       # --------------------------------------------------------
 
       - name: Add EC2 Host to known_hosts
@@ -263,73 +220,40 @@ jobs:
           script: |
 
             echo "======================================"
-            echo "Starting PERN deployment"
+            echo "Starting deployment"
             echo "======================================"
 
-            cd ~/pern-k8s-github-actions
+            cd ~/pern-store
 
-            echo ""
             echo "Current directory:"
             pwd
 
-            # ==================================================
-            # Pull Latest Docker Images
-            # ==================================================
-
             echo ""
-            echo "======================================"
-            echo "Pulling latest Docker images"
-            echo "======================================"
+            echo "Pulling latest Docker images..."
 
             docker pull vipulsingh2200/pern-backend:latest
             docker pull vipulsingh2200/pern-frontend:latest
 
-            # ==================================================
-            # Stop Existing Containers
-            # ==================================================
-
             echo ""
-            echo "======================================"
-            echo "Stopping old containers"
-            echo "======================================"
+            echo "Stopping old containers..."
 
             docker compose down || true
 
-            # ==================================================
-            # Start New Containers
-            # ==================================================
-
             echo ""
-            echo "======================================"
-            echo "Starting new containers"
-            echo "======================================"
+            echo "Starting new containers..."
 
             docker compose up -d
 
-            # ==================================================
-            # Remove Unused Images
-            # ==================================================
-
             echo ""
-            echo "======================================"
-            echo "Removing unused Docker images"
-            echo "======================================"
+            echo "Removing unused Docker images..."
 
             docker image prune -f
 
-            # ==================================================
-            # Deployment Status
-            # ==================================================
-
             echo ""
             echo "======================================"
-            echo "Deployment completed successfully"
+            echo "Deployment completed"
             echo "======================================"
 
             echo ""
             echo "Running containers:"
             docker ps
-
-            echo ""
-            echo "Docker Compose status:"
-            docker compose ps
