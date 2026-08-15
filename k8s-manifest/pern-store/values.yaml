@@ -1,0 +1,23 @@
+domain: www.jktravelgo.biz
+
+backend:
+  image:
+    repository: vipulsingh2200/pern-backend
+    tag: latest
+  replicaCount: 2
+  port: 3001
+  service:
+    type: ClusterIP
+    port: 3001
+
+frontend:
+  image:
+    repository: vipulsingh2200/pern-frontend
+    tag: latest
+  replicaCount: 2
+  port: 80
+  service:
+    type: ClusterIP
+    port: 80
+
+secretName: pern-backend-secret

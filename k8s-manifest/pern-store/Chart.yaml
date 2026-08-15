@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pern-store
+description: Helm chart for the PERN e-commerce store (backend + frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
