@@ -7,16 +7,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-fund
 COPY . .
-
 ARG VITE_CLERK_PUBLISHABLE_KEY
-ARG VITE_API_URL
 ARG VITE_IMAGEKIT_URL_ENDPOINT
 ARG VITE_SENTRY_DSN=
 ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
-ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_IMAGEKIT_URL_ENDPOINT=$VITE_IMAGEKIT_URL_ENDPOINT
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
-
 RUN npm run build
 # produces ./dist — static HTML/JS/CSS
 
@@ -24,6 +20,8 @@ RUN npm run build
 FROM nginx:1.27-alpine AS runner
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 EXPOSE 80
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
