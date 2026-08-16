@@ -151,8 +151,10 @@ jobs:
 
           build-args: |
             VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
-            VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_IMAGEKIT_URL_ENDPOINT=${{ vars.VITE_IMAGEKIT_URL_ENDPOINT }}
+          # VITE_API_URL is NOT a build-arg anymore — it's injected at
+          # container startup by entrypoint.sh, so the same image works
+          # in every environment (local test, staging, EKS prod).
 
       # -------------------------
       # Build Summary
@@ -183,77 +185,3 @@ jobs:
 
           echo "Frontend Digest:"
           echo "${{ steps.frontend-build.outputs.digest }}"
-
-
-  # ============================================================
-  # JOB 4 - DEPLOY TO AWS EC2
-  # ============================================================
-
-  deploy:
-    name: Deploy to AWS EC2
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-
-      # --------------------------------------------------------
-      # Add EC2 host to known_hosts
-      # Prevents interactive SSH confirmation
-      # --------------------------------------------------------
-
-      - name: Add EC2 Host to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
-
-      # --------------------------------------------------------
-      # SSH Deployment
-      # --------------------------------------------------------
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-
-          script: |
-
-            echo "======================================"
-            echo "Starting deployment"
-            echo "======================================"
-
-            cd ~/pern-store
-
-            echo "Current directory:"
-            pwd
-
-            echo ""
-            echo "Pulling latest Docker images..."
-
-            docker pull vipulsingh2200/pern-backend:latest
-            docker pull vipulsingh2200/pern-frontend:latest
-
-            echo ""
-            echo "Stopping old containers..."
-
-            docker compose down || true
-
-            echo ""
-            echo "Starting new containers..."
-
-            docker compose up -d
-
-            echo ""
-            echo "Removing unused Docker images..."
-
-            docker image prune -f
-
-            echo ""
-            echo "======================================"
-            echo "Deployment completed"
-            echo "======================================"
-
-            echo ""
-            echo "Running containers:"
-            docker ps
