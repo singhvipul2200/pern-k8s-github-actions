@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react";
-
-const raw = import.meta.env.VITE_API_URL;
-const base = typeof raw === "string" ? raw.replace(/\/+$/, "") : ""; // remove trailing slashes
+import { API_URL } from "../config";
+const raw = API_URL;
+const base = typeof raw === "string" ? raw.replace(/\/+$/, "") : "";
 
 // this is an authenticated fetch req that we use to send reqs to our api
 export async function apiFetch(path, opts = {}) {
